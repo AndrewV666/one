@@ -50,6 +50,7 @@ HostMonitorManager::HostMonitorManager(
     , threads(_threads)
     , timer_period(timer_period)
     , monitor_interval_host(monitor_interval_host)
+    , is_leader(false)
 {
     oned_driver    = new OneMonitorDriver(this);
     udp_driver     = new UDPMonitorDriver(addr, port);
@@ -215,6 +216,16 @@ void HostMonitorManager::stop_host_monitor(int oid)
     }
 
     stop_host_monitor(host);
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+void HostMonitorManager::raft_status(bool leader)
+{
+    is_leader = leader;
+
+    NebulaLog::info("xxx", "Raft status: " + std::to_string(leader));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -458,6 +469,11 @@ void HostMonitorManager::timer_action()
 
 void HostMonitorManager::start_host_monitor(const HostRPCPool::HostBaseLock& host)
 {
+    if (!is_leader)
+    {
+        return;
+    }
+
     auto driver = driver_manager->get_driver(host->im_mad());
 
     if (!driver)
@@ -482,6 +498,11 @@ void HostMonitorManager::start_host_monitor(const HostRPCPool::HostBaseLock& hos
 
 void HostMonitorManager::stop_host_monitor(const HostRPCPool::HostBaseLock& host)
 {
+    if (!is_leader)
+    {
+        return;
+    }
+
     auto driver = driver_manager->get_driver(host->im_mad());
 
     if (!driver)
